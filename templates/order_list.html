@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>订单列表</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+<div style="text-align: right;margin-top: 50px">
+    <a href="/logout?t={{.Timestamp}}">退出登录（{{.Username}}）</a>
+</div>
+<h3>订单列表</h3>
+<ul>
+    {{range .Orders}}
+    <li>订单ID: {{.ID}} - 金额: {{.Name}} - 金额: {{.Amount}}</li>
+    {{end}}
+</ul>
+</body>
+</html>

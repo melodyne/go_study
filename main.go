@@ -16,10 +16,6 @@ var db *sql.DB
 
 var store = sessions.NewCookieStore([]byte("secret"))
 
-//var (
-//	store = sessions.NewFilesystemStore("./tmp", securecookie.GenerateRandomKey(64), securecookie.GenerateRandomKey(32))
-//)
-
 type LoginForm struct {
 	User     string `form:"user" binding:"required"`
 	Password string `form:"password" binding:"required"`
@@ -64,6 +60,8 @@ func main() {
 	// 使用Gorilla sessions中间件
 	r.Use(sessionMiddleware)
 
+	r.LoadHTMLGlob("templates/*")
+
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "pong",
@@ -71,8 +69,9 @@ func main() {
 	})
 	r.GET("/set", setSession)
 	r.GET("/get", getSession)
+	r.GET("/rm", rmSession)
 	r.GET("/index", index)
-	r.GET("/login", login)
+	r.GET("/logout", logout)
 	r.POST("/login", login)
 	r.Run() // 监听并在 0.0.0.0:8080 上启动服务
 }
@@ -97,7 +96,7 @@ func index(c *gin.Context) {
 	//_, _ = c.Writer.Write([]byte("Session value of 'foo': " + foo))
 
 	if user == nil {
-		content, err := ioutil.ReadFile("login.html") // 读取文件内容
+		content, err := ioutil.ReadFile("templates/login.html") // 读取文件内容
 		if err != nil {
 			fmt.Printf("读取文件失败：%v\n", err)
 			return
@@ -109,7 +108,53 @@ func index(c *gin.Context) {
 		}
 		//c.String(200, string(content))
 	} else {
-		c.String(200, "已登录"+fmt.Sprintf("%t", user))
+		//c.String(200, "已登录"+fmt.Sprintf("%t", user))
+		// 连接数据库
+		db, err := sql.Open("mysql", "root:root@tcp(localhost:8889)/gotest")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+
+		// 检查数据库连接是否成功
+		err = db.Ping()
+		if err != nil {
+			log.Fatal(err)
+		}
+		// 执行查询
+		rows, err := db.Query("SELECT id,order_name,price FROM `order`")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer rows.Close()
+
+		type Order struct {
+			ID     int    `json:"id"`
+			Name   string `json:"name"`
+			Amount string `json:"price"`
+		}
+
+		var orders []Order
+		for rows.Next() {
+			var id int
+			var name string
+			var amount string
+			if err := rows.Scan(&id, &name, &amount); err != nil {
+				log.Fatal(err)
+			}
+			orders = append(orders, Order{ID: id, Name: name, Amount: amount})
+		}
+
+		if err := rows.Err(); err != nil {
+			log.Fatal(err)
+		}
+		c.Writer.Header().Set("Content-Type", "text/html")
+		// 将订单数据传递给模板
+		c.HTML(http.StatusOK, "order_list.html", gin.H{
+			"Username":  user,
+			"Orders":    orders,
+			"Timestamp": time.Now().Unix(),
+		})
 	}
 
 }
@@ -174,6 +219,13 @@ func login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"username": uname})
 }
 
+func logout(c *gin.Context) {
+	session := c.MustGet("session").(*sessions.Session)
+	session.Values["username"] = nil
+	session.Save(c.Request, c.Writer)
+	c.Redirect(http.StatusMovedPermanently, "/index")
+}
+
 func startPage(c *gin.Context) {
 	var person Person
 	// 如果是 `GET` 请求，只使用 `Form` 绑定引擎（`query`）。
@@ -191,6 +243,13 @@ func startPage(c *gin.Context) {
 func setSession(c *gin.Context) {
 	session := c.MustGet("session").(*sessions.Session)
 	session.Values["foo"] = "bar"
+	session.Save(c.Request, c.Writer)
+	c.JSON(http.StatusOK, gin.H{"message": "session set"})
+}
+
+func rmSession(c *gin.Context) {
+	session := c.MustGet("session").(*sessions.Session)
+	session.Values["foo"] = nil
 	session.Save(c.Request, c.Writer)
 	c.JSON(http.StatusOK, gin.H{"message": "session set"})
 }
