@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gomodule/redigo/redis"
 	"github.com/gorilla/sessions"
 	"io/ioutil"
 	"log"
@@ -13,6 +14,8 @@ import (
 )
 
 var db *sql.DB
+
+var pool redis.Pool
 
 var store = sessions.NewCookieStore([]byte("secret"))
 
@@ -56,6 +59,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	pool = redis.Pool{
+		MaxIdle:     3,
+		MaxActive:   10,
+		IdleTimeout: 240,
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", "localhost:6379")
+		},
+	}
+
 	r := gin.Default()
 	// 使用Gorilla sessions中间件
 	r.Use(sessionMiddleware)
@@ -73,6 +85,29 @@ func main() {
 	r.GET("/index", index)
 	r.GET("/logout", logout)
 	r.POST("/login", login)
+
+	r.GET("/set_redis", func(c *gin.Context) {
+		conn := pool.Get()
+		_, err := conn.Do("SET", "key", "value")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer conn.Close()
+		c.JSON(http.StatusOK, gin.H{"message": "Key set successfully"})
+	})
+
+	r.GET("/get_redis", func(c *gin.Context) {
+		conn := pool.Get()
+		value, err := redis.String(conn.Do("GET", "key"))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer conn.Close()
+		c.JSON(http.StatusOK, gin.H{"value": value})
+	})
+
 	r.Run() // 监听并在 0.0.0.0:8080 上启动服务
 }
 
