@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login Page</title>
+    <style>
+        #login-container {
+            width: 300px;
+            margin: 100px auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #login-container h1 {
+            text-align: center;
+        }
+
+        #login-container input[type="text"], #login-container input[type="password"] {
+            width: calc(100% - 10px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        #login-container button {
+            width: 100%;
+            padding: 10px;
+            background-color: #5cb85c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #login-container button:hover {
+            background-color: #4cae4c;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+<div id="login-container">
+    <form id="login-form">
+        <h1>Login</h1>
+        <div>
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <div>
+            <button type="submit">Login</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $('#login-form').submit(function(e) {
+            e.preventDefault(); // 阻止表单默认提交行为
+
+            var username = $('#username').val();
+            var password = $('#password').val();
+
+            // 这里可以添加验证逻辑和AJAX请求来向服务器发送数据
+            console.log('Username:', username);
+            console.log('Password:', password);
+
+            $.ajax({
+                url: '/login', // 替换为你的API端点
+                type: 'POST', // 请求类型
+                //contentType: 'application/json', // 发送信息至服务器时内容编码类型
+                //data: JSON.stringify({ username: username, password: password}), // 将对象转换为JSON字符串
+                //processData: false, // 不要对data进行处理，因为数据已经是字符串
+                data:{ username: username, password: password},
+                dataType: 'json', // 期望从服务器返回的数据类型
+                success: function(response) {
+                    // 请求成功时的回调函数
+                    console.log('Response:', response);
+                    // 验证通过，可以跳转到主页
+                    window.location.href = '/index';
+                },
+                error: function(xhr, status, error) {
+                    // 请求失败时的回调函数
+                    console.error('Error:', error);
+                    alert('账号或密码错误')
+                }
+            });
+        });
+    });
+</script>
+
+</body>
+</html>
